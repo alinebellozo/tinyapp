@@ -16,13 +16,6 @@ const urlDatabase = {
   "9sm5xK": "http://www.google.com",
 };
 
-app.post("/urls", (req, res) => {
-  const longUrl = req.body.longUrl;
-  const shortUrl = generateRandomString();
-  urlDatabase[shortUrl] = longUrl;
-  res.redirect(`/urls/${shortUrl}`);
-});
-
 app.get("/", (req, res) => {
   res.send("Hello!");
 });
@@ -49,16 +42,31 @@ app.get("/u/:id", (req, res) => {
   res.redirect(longURL);
 });
 
+app.post("/urls", (req, res) => {
+  const longUrl = req.body.longUrl;
+  const shortUrl = generateRandomString();
+  urlDatabase[shortUrl] = longUrl;
+  res.redirect(`/urls/${shortUrl}`);
+});
+
+// route that removes a URL resource:
 app.post("/urls/:id/delete", (req, res) => {
   delete urlDatabase[req.params.id];
   res.redirect("/urls");
 });
 
+// route that updates a URL resource:
 app.post("/urls/:id", (req, res) => {
+  // it updates the value of the stored long URL based on the new value in req.body
   const shortUrl = req.params.shortUrl;
   const longUrl = req.body.longUrl;
   urlDatabase[shortUrl] = longUrl;
-  res.redirect(`/urls/${shortUrl}`);
+  // redirect the client back to /urls
+  res.redirect("/urls");
+});
+
+app.post("/urls/:id/login", (req, res) => {
+  res.cookie("username", "");
 });
 
 app.get("/hello", (req, res) => {
