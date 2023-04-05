@@ -6,7 +6,6 @@ const PORT = 8080; // default port 8080
 // tells the Express app to use EJS as its templating engine:
 app.set("view engine", "ejs");
 
-//
 app.use(cookieParser());
 
 app.use(express.urlencoded({ extended: true }));
@@ -20,6 +19,40 @@ const urlDatabase = {
   "9sm5xK": "http://www.google.com",
 };
 
+const users = {
+  userID: {
+    id: "userID",
+    email: "xuxa@example.com",
+    password: "purplemonkeydinosaur",
+  },
+  user2ID: {
+    id: "user2ID",
+    email: "sasha@example.com",
+    password: "dishwasherfunk",
+  },
+};
+
+const addUser = (email, password) => {
+  let id = generateRandomString();
+  users[id] = {
+    id,
+    email,
+    password,
+  };
+  return id;
+};
+
+const checkEmail = (database, email) => {
+  for (const user in database) {
+    if (users[user]["email"] === email) {
+      return true;
+    }
+  }
+  return false;
+};
+
+// Routes
+
 app.get("/", (req, res) => {
   res.send("Hello!");
 });
@@ -27,13 +60,13 @@ app.get("/", (req, res) => {
 app.get("/urls", (req, res) => {
   const templateVars = {
     urls: urlDatabase,
-    username: req.cookies["username"],
+    user: users[req.cookies.userID],
   };
   res.render("urls_index", templateVars);
 });
 
 app.get("/urls/new", (req, res) => {
-  const templateVars = { username: req.cookies["username"] };
+  const templateVars = { user: users[req.cookies.userID] };
   res.render("urls_new", templateVars);
 });
 
@@ -41,7 +74,7 @@ app.get("/urls/:id", (req, res) => {
   const templateVars = {
     id: req.params.id,
     longURL: urlDatabase[req.params.id],
-    username: req.cookies["username"],
+    user: users[req.cookies.userID],
   };
   res.render("urls_show", templateVars);
 });
@@ -51,6 +84,11 @@ app.get("/u/:id", (req, res) => {
   res.redirect(longURL);
 });
 
+app.get("/register", (req, res) => {
+  let templateVars = { user: users[req.cookies.userID] };
+  res.render("urls_register", templateVars);
+});
+
 app.post("/urls", (req, res) => {
   const longUrl = req.body.longUrl;
   const shortUrl = generateRandomString();
@@ -58,30 +96,53 @@ app.post("/urls", (req, res) => {
   res.redirect(`/urls/${shortUrl}`);
 });
 
-// route that removes a URL resource:
+// removes a URL resource:
 app.post("/urls/:id/delete", (req, res) => {
   delete urlDatabase[req.params.id];
   res.redirect("/urls");
 });
 
-// route that updates a URL resource:
+// updates a URL resource:
 app.post("/urls/:id", (req, res) => {
-  // it updates the value of the stored long URL based on the new value in req.body
+  // updates the value of the stored long URL based on the new value in req.body
   const shortUrl = req.params.shortUrl;
   const longUrl = req.body.longUrl;
   urlDatabase[shortUrl] = longUrl;
-  // redirect the client back to /urls
+  // redirects the client back to /urls
   res.redirect("/urls");
 });
 
 app.post("/login", (req, res) => {
-  res.cookie("username", req.body.username);
+  res.cookie("user_id", req.body.user_id);
   res.redirect("/urls");
 });
 
 app.post("/logout", (req, res) => {
-  res.clearCookie("username");
+  res.clearCookie("user_id");
   res.redirect("/urls");
+});
+
+// adds a new user object to the users object
+app.post("/register", (req, res) => {
+  const enteredEmail = req.body.email;
+  const enteredPassword = req.body.password;
+
+  // checks if the fields are blank
+  if (!enteredEmail && !enteredPassword) {
+    res.status(400).send("Oops, the fields can't be blank");
+  }
+  // checks if the email was already registered
+  if (checkEmail(users, enteredEmail)) {
+    res
+      .status(400)
+      .send("This email is already registered. Please try using another.");
+    // if those above are false, it creates a new user
+  } else {
+    const user_id = addUser(enteredEmail, enteredPassword);
+    res.cookie("user_id", user_id);
+    console.log(users);
+    res.redirect("/urls");
+  }
 });
 
 app.listen(PORT, () => {
