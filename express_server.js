@@ -17,6 +17,14 @@ function generateRandomString() {
 const urlDatabase = {
   b2xVn2: "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com",
+  b6UTxQ: {
+    longURL: "https://www.tsn.ca",
+    userID: "aJ48lW",
+  },
+  i3BoGr: {
+    longURL: "https://www.google.ca",
+    userID: "aJ48lW",
+  },
 };
 
 const users = {
@@ -68,12 +76,18 @@ app.get("/urls", (req, res) => {
 app.get("/urls/new", (req, res) => {
   const templateVars = { user: users[req.cookies["user_id"]] };
   res.render("urls_new", templateVars);
+  // If the user is not logged in, redirect GET /urls/new to GET /login
+  if (!templateVars.user) {
+    res.render("urls_login", templateVars);
+  } else {
+    res.render("urls_new", templateVars);
+  }
 });
 
 app.get("/urls/:id", (req, res) => {
   const templateVars = {
     id: req.params.id,
-    longURL: urlDatabase[req.params.id],
+    longURL: urlDatabase[req.params.id].longURL,
     user: users[req.cookies["user_id"]],
   };
   res.render("urls_show", templateVars);
@@ -87,19 +101,26 @@ app.get("/u/:id", (req, res) => {
 app.get("/register", (req, res) => {
   let templateVars = { user: users[req.cookies["user_id"]] };
   res.render("urls_register", templateVars);
+  res.redirect("/urls");
 });
 
 // responds with the new login form template
 app.get("/login", (req, res) => {
   let templateVars = { user: users[req.cookies["user_id"]] };
   res.render("urls_login", templateVars);
+  res.redirect("/urls");
 });
 
 app.post("/urls", (req, res) => {
-  const longUrl = req.body.longUrl;
-  const shortUrl = generateRandomString();
-  urlDatabase[shortUrl] = longUrl;
-  res.redirect(`/urls/${shortUrl}`);
+  const shortURL = generateRandomString();
+  urlDatabase[shortURL] = {
+    longURL: req.body.longURL,
+    userID: req.cookies["user_id"],
+  };
+  console.log(urlDatabase[shortURL]);
+  res.redirect(`/urls/${shortURL}`);
+
+  //If the user is not logged in, POST /urls should respond with an HTML message that tells the user why they cannot shorten URLs. Double check that in this case the URL is not added to the database.
 });
 
 // removes a URL resource:
@@ -115,7 +136,7 @@ app.post("/urls/:id", (req, res) => {
   const longUrl = req.body.longUrl;
   urlDatabase[shortUrl] = longUrl;
   // redirects the client back to /urls
-  res.redirect("/urls");
+  res.redirect("/urls/new");
 });
 
 app.post("/login", (req, res) => {
@@ -129,7 +150,6 @@ app.post("/login", (req, res) => {
     res.status(403).send("Oops, wrong password");
   } else {
     res.cookie("user_id", user);
-    console.log(user);
     res.redirect("/urls");
   }
 });
