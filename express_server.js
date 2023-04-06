@@ -45,7 +45,7 @@ const addUser = (email, password) => {
 const checkEmail = (database, email) => {
   for (const user in database) {
     if (users[user]["email"] === email) {
-      return true;
+      return user;
     }
   }
   return false;
@@ -119,13 +119,24 @@ app.post("/urls/:id", (req, res) => {
 });
 
 app.post("/login", (req, res) => {
-  res.cookie("user_id", req.body.user_id);
-  res.redirect("/urls");
+  const enteredEmail = req.body.email;
+  const enteredPassword = req.body.password;
+  const user = checkEmail(users, enteredEmail);
+
+  if (!user) {
+    res.status(403).send("Oops, email not found");
+  } else if (enteredPassword !== users[user].password) {
+    res.status(403).send("Oops, wrong password");
+  } else {
+    res.cookie("user_id", user);
+    console.log(user);
+    res.redirect("/urls");
+  }
 });
 
 app.post("/logout", (req, res) => {
   res.clearCookie("user_id");
-  res.redirect("/urls");
+  res.redirect("/login");
 });
 
 // adds a new user object to the users object
