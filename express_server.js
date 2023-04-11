@@ -10,10 +10,6 @@ app.use(cookieParser());
 
 app.use(express.urlencoded({ extended: true }));
 
-function generateRandomString() {
-  return Math.random().toString(36).substring(6);
-}
-
 const urlDatabase = {
   b2xVn2: "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com",
@@ -40,6 +36,12 @@ const users = {
   },
 };
 
+// functions
+
+function generateRandomString() {
+  return Math.random().toString(36).substring(6);
+}
+
 const addUser = (email, password) => {
   let id = generateRandomString();
   users[id] = {
@@ -59,7 +61,20 @@ const checkEmail = (database, email) => {
   return false;
 };
 
-// Routes
+const urlsForUser = (id) => {
+  const filteredUser = {};
+  let db = Object.keys(urlDatabase);
+
+  for (let urlID of db) {
+    if (urlDatabase[urlID]["userID"] === id) {
+      console.log(urlDatabase[urlID]["userID"]);
+      filteredUser[urlID] = urlDatabase[urlID];
+    }
+  }
+  return filteredUser;
+};
+
+// routes
 
 app.get("/", (req, res) => {
   res.send("Hello!");
@@ -69,6 +84,7 @@ app.get("/urls", (req, res) => {
   const templateVars = {
     urls: urlDatabase,
     user: users[req.cookies["user_id"]],
+    urls: urlsForUser(req.cookies["user_id"]),
   };
   res.render("urls_index", templateVars);
 });
@@ -87,14 +103,14 @@ app.get("/urls/new", (req, res) => {
 app.get("/urls/:id", (req, res) => {
   const templateVars = {
     id: req.params.id,
-    longURL: urlDatabase[req.params.id].longURL,
+    longURL: urlDatabase[req.params.id]["longURL"],
     user: users[req.cookies["user_id"]],
   };
   res.render("urls_show", templateVars);
 });
 
 app.get("/u/:id", (req, res) => {
-  const longURL = urlDatabase[req.params.id];
+  const longURL = urlDatabase[req.params.id].longURL;
   res.redirect(longURL);
 });
 
@@ -117,16 +133,21 @@ app.post("/urls", (req, res) => {
     longURL: req.body.longURL,
     userID: req.cookies["user_id"],
   };
+
   console.log(urlDatabase[shortURL]);
   res.redirect(`/urls/${shortURL}`);
-
-  //If the user is not logged in, POST /urls should respond with an HTML message that tells the user why they cannot shorten URLs. Double check that in this case the URL is not added to the database.
 });
 
 // removes a URL resource:
 app.post("/urls/:id/delete", (req, res) => {
-  delete urlDatabase[req.params.id];
-  res.redirect("/urls");
+  const user = req.cookies["user_id"];
+  const id = req.params.id;
+  if (user !== urlDatabase[id]["userID"]) {
+    console.log("Oops, you are not allowed to delete this URL.");
+  } else {
+    delete urlDatabase[req.params.id];
+    res.redirect("/urls");
+  }
 });
 
 // updates a URL resource:
