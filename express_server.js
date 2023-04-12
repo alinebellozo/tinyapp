@@ -1,14 +1,18 @@
 const express = require("express");
 const cookieParser = require("cookie-parser");
+const bcrypt = require("bcryptjs");
 const app = express();
 const PORT = 8080; // default port 8080
 
 // tells the Express app to use EJS as its templating engine:
 app.set("view engine", "ejs");
 
-app.use(cookieParser());
+// middleware
 
+app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
+
+// databases
 
 const urlDatabase = {
   b2xVn2: "http://www.lighthouselabs.ca",
@@ -44,10 +48,12 @@ function generateRandomString() {
 
 const addUser = (email, password) => {
   let id = generateRandomString();
+  const hashedPassword = bcrypt.hashSync(password, 10);
+
   users[id] = {
     id,
     email,
-    password,
+    password: hashedPassword,
   };
   return id;
 };
@@ -86,7 +92,12 @@ app.get("/urls", (req, res) => {
     user: users[req.cookies["user_id"]],
     urls: urlsForUser(req.cookies["user_id"]),
   };
-  res.render("urls_index", templateVars);
+
+  if (!templateVars.user) {
+    res.status(400).send("You need to be logged in to access the URLs");
+  } else {
+    res.render("urls_index", templateVars);
+  }
 });
 
 app.get("/urls/new", (req, res) => {
@@ -94,9 +105,16 @@ app.get("/urls/new", (req, res) => {
   res.render("urls_new", templateVars);
   // If the user is not logged in, redirect GET /urls/new to GET /login
   if (!templateVars.user) {
-    res.render("urls_login", templateVars);
+    res
+      .status(400)
+      .send("Oops, you need to register or login to access this page.");
+  }
+  if (
+    req.cookies["user_id"] !== urlDatabase[templateVars.shortURL]["user_id"]
+  ) {
+    res.status(400).send("Oops, this URL is not yours.");
   } else {
-    res.render("urls_new", templateVars);
+    res.render("urls_show", templateVars);
   }
 });
 
@@ -155,8 +173,15 @@ app.post("/urls/:id", (req, res) => {
   // updates the value of the stored long URL based on the new value in req.body
   const shortUrl = req.params.shortUrl;
   const longUrl = req.body.longUrl;
-  urlDatabase[shortUrl] = longUrl;
+  urlDatabase[shortUrl].longUrl = longUrl;
+  const user = req.cookies["user_id"];
   // redirects the client back to /urls
+  if (user !== urlDatabase[shortUrl]["user_id"]) {
+    res.status(400).send("Oops, you are not allowed to edit this URL.");
+  } else {
+    urlDatabase[shortUrl].longUrl = longUrl;
+    res.redirect(`/urls/${shortUrl}`);
+  }
   res.redirect("/urls/new");
 });
 
@@ -167,7 +192,7 @@ app.post("/login", (req, res) => {
 
   if (!user) {
     res.status(403).send("Oops, email not found");
-  } else if (enteredPassword !== users[user].password) {
+  } else if (!bcrypt.compareSync(enteredPassword, users[user]["password"])) {
     res.status(403).send("Oops, wrong password");
   } else {
     res.cookie("user_id", user);
