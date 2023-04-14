@@ -15,7 +15,7 @@
 
 <body>
   <main style="margin: 1em;">
-    <h3>My URLs</h3>
+    <h3 style="padding: .4em;">My URLs</h3>
     <table class="table">
       <thead>
         <tr>
@@ -30,19 +30,14 @@
               <%= id %>
             </td>
             <td>
-              <%= urls[id] %>
-            </td>
-            <td>
               <%= urls[id].longURL %>
             </td>
-            <td>
+            <td class="d-flex justify-content-evenly" style="gap: 2em;">
               <form method="POST" action="/urls/<%= id %>/delete">
-                <button type="submit" class="btn btn-primary">Delete</button>
+                <button type="submit" class="btn btn-outline-danger" >Delete</button>
               </form>
-            </td>
-            <td>
               <form method="get" action="/urls/<%= id %>">
-                <button type="submit" class="btn btn-primary">Edit</button>
+                <button type="submit" class="btn btn-outline-primary">Edit</button>
               </form>
             </td>
           </tr>

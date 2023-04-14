@@ -1,7 +1,7 @@
 const express = require("express");
 const cookieSession = require("cookie-session");
 const bcrypt = require("bcryptjs");
-const getUserByEmail = require("./helpers");
+const { getUserByEmail } = require("./helpers");
 const app = express();
 const PORT = 8080; // default port 8080
 
@@ -70,7 +70,6 @@ const urlsForUser = (id) => {
 
   for (let urlID of db) {
     if (urlDatabase[urlID]["userID"] === id) {
-      console.log(urlDatabase[urlID]["userID"]);
       filteredUser[urlID] = urlDatabase[urlID];
     }
   }
@@ -98,29 +97,26 @@ app.get("/urls", (req, res) => {
 
 app.get("/urls/new", (req, res) => {
   const templateVars = { user: users[req.session["user_id"]] };
-  res.render("urls_new", templateVars);
   // If the user is not logged in, redirect GET /urls/new to GET /login
   if (!templateVars.user) {
-    res
-      .status(400)
-      .send("Oops, you need to register or login to access this page.");
-  }
-  if (
-    req.session["user_id"] !== urlDatabase[templateVars.shortURL]["user_id"]
-  ) {
-    res.status(400).send("Oops, this URL is not yours.");
+    res.render("urls_login", templateVars);
   } else {
-    res.render("urls_show", templateVars);
+    res.render("urls_new", templateVars);
   }
 });
 
+// specific id (shortURL)
 app.get("/urls/:id", (req, res) => {
   const templateVars = {
     id: req.params.id,
     longURL: urlDatabase[req.params.id]["longURL"],
     user: users[req.session["user_id"]],
   };
-  res.render("urls_show", templateVars);
+  if (req.session["user_id"] === urlDatabase[templateVars.id]["userId"]) {
+    res.render("urls_show", templateVars);
+  } else {
+    res.status(400).send("Oops, this URL doesn't belong to you.");
+  }
 });
 
 app.get("/u/:id", (req, res) => {
@@ -148,7 +144,6 @@ app.post("/urls", (req, res) => {
     userID: req.session["user_id"],
   };
 
-  console.log(urlDatabase[shortURL]);
   res.redirect(`/urls/${shortURL}`);
 });
 
@@ -157,7 +152,7 @@ app.post("/urls/:id/delete", (req, res) => {
   const user = req.session["user_id"];
   const id = req.params.id;
   if (user !== urlDatabase[id]["userID"]) {
-    console.log("Oops, you are not allowed to delete this URL.");
+    res.status(400).send("Oops, you are not allowed to delete this URL.");
   } else {
     delete urlDatabase[req.params.id];
     res.redirect("/urls");
@@ -167,16 +162,16 @@ app.post("/urls/:id/delete", (req, res) => {
 // updates a URL resource:
 app.post("/urls/:id", (req, res) => {
   // updates the value of the stored long URL based on the new value in req.body
-  const shortUrl = req.params.shortUrl;
-  const longUrl = req.body.longUrl;
-  urlDatabase[shortUrl].longUrl = longUrl;
+  const shortURL = req.params.shortURL;
+  const longURL = req.body.longURL;
+  urlDatabase[shortURL]["longURL"] = longURL;
   const user = req.session["user_id"];
   // redirects the client back to /urls
-  if (user !== urlDatabase[shortUrl]["user_id"]) {
+  if (user !== urlDatabase[shortURL]["user_id"]) {
     res.status(400).send("Oops, you are not allowed to edit this URL.");
   } else {
-    urlDatabase[shortUrl].longUrl = longUrl;
-    res.redirect(`/urls/${shortUrl}`);
+    urlDatabase[shortURL].longURL = longURL;
+    res.redirect(`/urls/${shortURL}`);
   }
   res.redirect("/urls/new");
 });
@@ -197,7 +192,7 @@ app.post("/login", (req, res) => {
 });
 
 app.post("/logout", (req, res) => {
-  res.clearCookie("user_id");
+  req.session = null;
   res.redirect("/login");
 });
 
@@ -221,7 +216,6 @@ app.post("/register", (req, res) => {
   } else {
     const user_id = addUser(enteredEmail, enteredPassword);
     req.session["user_id"] = user_id;
-    console.log(users);
     res.redirect("/urls");
   }
 });
